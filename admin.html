@@ -106,6 +106,14 @@
   .lookup-btn:disabled { background: #C9BC9A; cursor: default; }
   .lookup-status { font-size: 0.8rem; color: #7C8A80; margin-top: 6px; }
 
+  .cover-preview {
+    margin-top: 10px;
+    height: 90px;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    box-shadow: 1px 2px 4px rgba(34,51,43,0.12);
+  }
+
   .rating-picker { display: flex; gap: 6px; }
   .rating-picker button {
     background: none;
@@ -189,6 +197,7 @@
         <button type="button" class="lookup-btn" id="lookupBtn">Look up</button>
       </div>
       <div class="lookup-status" id="lookupStatus"></div>
+      <img id="coverPreview" class="cover-preview" style="display:none;" alt="Cover preview">
     </div>
     <div class="field">
       <label for="dateInput">Date finished (optional)</label>
@@ -225,6 +234,7 @@
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let selectedRating = 0;
+  let foundCoverUrl = null;
   let books = [];
 
   document.getElementById('unlockBtn').addEventListener('click', tryUnlock);
@@ -264,9 +274,12 @@
     }
     listEl.innerHTML = books.map(b => `
       <div class="book-row" data-id="${b.id}">
-        <div class="info">
-          <strong>${escapeHtml(b.title)}</strong>
-          <span>${b.author ? escapeHtml(b.author) + ' · ' : ''}${escapeHtml(b.genre || '')}</span>
+        <div class="info" style="display:flex; align-items:center; gap:10px;">
+          ${b.cover_url ? `<img src="${escapeHtml(b.cover_url)}" alt="" style="width:28px; height:40px; object-fit:cover; border-radius:1px; border:1px solid var(--line);">` : ''}
+          <div>
+            <strong>${escapeHtml(b.title)}</strong>
+            <span>${b.author ? escapeHtml(b.author) + ' · ' : ''}${escapeHtml(b.genre || '')}</span>
+          </div>
         </div>
         <button class="remove-btn" data-id="${b.id}">Remove</button>
       </div>
@@ -331,8 +344,20 @@
         if (!author && withCategory.volumeInfo.authors) {
           document.getElementById('authorInput').value = withCategory.volumeInfo.authors[0];
         }
-        statusEl.textContent = `Found: ${genre}`;
+        const thumb = withCategory.volumeInfo.imageLinks && withCategory.volumeInfo.imageLinks.thumbnail;
+        foundCoverUrl = thumb ? thumb.replace('http://', 'https://') : null;
+        const previewEl = document.getElementById('coverPreview');
+        if (foundCoverUrl) {
+          previewEl.src = foundCoverUrl;
+          previewEl.style.display = 'block';
+          statusEl.textContent = `Found: ${genre} (cover included)`;
+        } else {
+          previewEl.style.display = 'none';
+          statusEl.textContent = `Found: ${genre} (no cover available)`;
+        }
       } else {
+        foundCoverUrl = null;
+        document.getElementById('coverPreview').style.display = 'none';
         statusEl.textContent = "Couldn't find a genre — enter it yourself.";
       }
     } catch (e) {
@@ -361,7 +386,7 @@
     errorText.style.display = 'none';
 
     const { data, error } = await db.from('books').insert([{
-      title, author, genre, date: date || null, rating: selectedRating || null
+      title, author, genre, date: date || null, rating: selectedRating || null, cover_url: foundCoverUrl
     }]).select();
 
     saveBtn.disabled = false;
@@ -381,6 +406,8 @@
     document.getElementById('genreInput').value = '';
     document.getElementById('dateInput').value = '';
     document.getElementById('lookupStatus').textContent = '';
+    document.getElementById('coverPreview').style.display = 'none';
+    foundCoverUrl = null;
     selectedRating = 0;
     document.querySelectorAll('#ratingPicker button').forEach(b => b.classList.remove('selected'));
     document.getElementById('titleInput').focus();
