@@ -235,6 +235,7 @@
 
   let selectedRating = 0;
   let foundCoverUrl = null;
+  let foundSummary = null;
   let books = [];
 
   document.getElementById('unlockBtn').addEventListener('click', tryUnlock);
@@ -312,6 +313,15 @@
 
   const GOOGLE_BOOKS_API_KEY = 'AIzaSyAXmNTkRFb4pNdNvgsq_YoBuTGh2qootyc';
 
+  function truncateSummary(description) {
+    if (!description) return null;
+    const plain = description.replace(/<[^>]+>/g, '').trim();
+    if (plain.length <= 180) return plain;
+    const cut = plain.slice(0, 180);
+    const lastSpace = cut.lastIndexOf(' ');
+    return cut.slice(0, lastSpace > 0 ? lastSpace : 180).trim() + '…';
+  }
+
   document.getElementById('lookupBtn').addEventListener('click', async () => {
     const title = document.getElementById('titleInput').value.trim();
     const author = document.getElementById('authorInput').value.trim();
@@ -346,17 +356,23 @@
         }
         const thumb = withCategory.volumeInfo.imageLinks && withCategory.volumeInfo.imageLinks.thumbnail;
         foundCoverUrl = thumb ? thumb.replace('http://', 'https://') : null;
+
+        foundSummary = truncateSummary(withCategory.volumeInfo.description);
+
         const previewEl = document.getElementById('coverPreview');
         if (foundCoverUrl) {
           previewEl.src = foundCoverUrl;
           previewEl.style.display = 'block';
-          statusEl.textContent = `Found: ${genre} (cover included)`;
         } else {
           previewEl.style.display = 'none';
-          statusEl.textContent = `Found: ${genre} (no cover available)`;
         }
+        const parts = [`Found: ${genre}`];
+        parts.push(foundCoverUrl ? 'cover included' : 'no cover available');
+        parts.push(foundSummary ? 'summary included' : 'no summary available');
+        statusEl.textContent = `${parts[0]} (${parts.slice(1).join(', ')})`;
       } else {
         foundCoverUrl = null;
+        foundSummary = null;
         document.getElementById('coverPreview').style.display = 'none';
         statusEl.textContent = "Couldn't find a genre — enter it yourself.";
       }
@@ -386,7 +402,7 @@
     errorText.style.display = 'none';
 
     const { data, error } = await db.from('books').insert([{
-      title, author, genre, date: date || null, rating: selectedRating || null, cover_url: foundCoverUrl
+      title, author, genre, date: date || null, rating: selectedRating || null, cover_url: foundCoverUrl, summary: foundSummary
     }]).select();
 
     saveBtn.disabled = false;
@@ -408,6 +424,7 @@
     document.getElementById('lookupStatus').textContent = '';
     document.getElementById('coverPreview').style.display = 'none';
     foundCoverUrl = null;
+    foundSummary = null;
     selectedRating = 0;
     document.querySelectorAll('#ratingPicker button').forEach(b => b.classList.remove('selected'));
     document.getElementById('titleInput').focus();
