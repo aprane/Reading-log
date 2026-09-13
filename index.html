@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Reading Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ink: #22332B;
+    --paper: #F3ECDA;
+    --paper-card: #FBF7EC;
+    --cloth: #3C5A45;
+    --cloth-dark: #2A4132;
+    --brass: #B8863F;
+    --brass-light: #E4C88A;
+    --stamp: #8C3B3B;
+    --line: #D8CBA8;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* Header, ledger style */
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  header h1 {
+    font-family: 'Lora', serif;
+    font-weight: 700;
+    font-size: 2.4rem;
+    margin: 0 0 6px 0;
+    letter-spacing: -0.01em;
+  }
+
+  header p {
+    margin: 0;
+    color: #5B6B60;
+    font-size: 0.95rem;
+    max-width: 40ch;
+  }
+
+  .count {
+    font-family: 'Lora', serif;
+    font-size: 0.95rem;
+    color: var(--cloth-dark);
+    white-space: nowrap;
+    padding-bottom: 4px;
+  }
+  .count strong { font-size: 1.3rem; }
+
+  /* Genre tabs */
+  .tabs {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 32px;
+    padding-bottom: 12px;
+  }
+
+  .tab {
+    background: none;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.92rem;
+    color: #6B7A6F;
+    cursor: pointer;
+    padding: 4px 0;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .tab:hover { color: var(--ink); }
+
+  .tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--brass);
+    font-weight: 600;
+  }
+
+  .genre-group { margin-bottom: 34px; }
+
+  .genre-heading {
+    font-family: 'Lora', serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--cloth-dark);
+    margin: 0 0 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Card grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 18px;
+  }
+
+  .card {
+    position: relative;
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 20px 18px 16px;
+    box-shadow: 1px 2px 0 rgba(34,51,43,0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .card .genre-tag {
+    position: absolute;
+    top: -9px;
+    right: 14px;
+    background: var(--brass);
+    color: var(--paper-card);
+    font-size: 0.72rem;
+    padding: 3px 9px;
+    border-radius: 2px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+
+  .card h3 {
+    font-family: 'Lora', serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 6px 0 0;
+    line-height: 1.3;
+  }
+
+  .card .author {
+    font-style: italic;
+    color: #5B6B60;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .card .meta {
+    margin-top: 8px;
+    font-size: 0.82rem;
+    color: #7C8A80;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .stars {
+    color: var(--brass);
+    letter-spacing: 1px;
+  }
+
+  /* Empty state */
+  .empty {
+    border: 1px dashed var(--line);
+    border-radius: 3px;
+    padding: 48px 24px;
+    text-align: center;
+    color: #6B7A6F;
+  }
+  .empty p:first-child {
+    font-family: 'Lora', serif;
+    font-size: 1.2rem;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+
+  @media (max-width: 480px) {
+    header h1 { font-size: 2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>My Reading Log</h1>
+      <p>Every book I've finished, sorted onto its shelf.</p>
+    </div>
+    <div class="count" id="count"></div>
+  </header>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div id="content"></div>
+</div>
+
+<script>
+  let books = [];
+  let activeGenre = 'All';
+
+  const SUPABASE_URL = 'https://xwnemuogbzekxlhjlvvg.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_coGaKWEh9vUrE_9hRoRTkw_fZU-Mp6R';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const contentEl = document.getElementById('content');
+  const tabsEl = document.getElementById('tabs');
+  const countEl = document.getElementById('count');
+
+  async function loadBooks() {
+    contentEl.innerHTML = '<p style="color:#7C8A80;">Loading your shelf…</p>';
+    try {
+      const { data, error } = await db.from('books').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      books = data || [];
+    } catch (e) {
+      console.error('Could not load books', e);
+      books = [];
+      contentEl.innerHTML = '<div class="empty"><p>Could not reach the database.</p><p>Check your connection and refresh.</p></div>';
+      return;
+    }
+    render();
+  }
+
+  function getGenres() {
+    const set = new Set(books.map(b => b.genre).filter(Boolean));
+    return Array.from(set).sort();
+  }
+
+  function render() {
+    // tabs
+    const genres = getGenres();
+    const tabNames = ['All', ...genres];
+    tabsEl.innerHTML = tabNames.map(g =>
+      `<button class="tab${g === activeGenre ? ' active' : ''}" data-genre="${escapeHtml(g)}">${escapeHtml(g)}${g !== 'All' ? ' (' + books.filter(b => b.genre === g).length + ')' : ''}</button>`
+    ).join('');
+    tabsEl.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeGenre = btn.dataset.genre;
+        render();
+      });
+    });
+
+    // count
+    countEl.innerHTML = `<strong>${books.length}</strong> book${books.length === 1 ? '' : 's'} logged`;
+
+    // cards
+    const filtered = activeGenre === 'All' ? books : books.filter(b => b.genre === activeGenre);
+
+    if (filtered.length === 0) {
+      contentEl.innerHTML = `
+        <div class="empty">
+          <p>${books.length === 0 ? "Your shelf is empty." : "No books in this genre yet."}</p>
+          <p>${books.length === 0 ? "Add the first book you've read to get started." : "Add one, or pick another tab."}</p>
+        </div>`;
+      return;
+    }
+
+    const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '');
+
+    function cardHtml(b) {
+      return `
+      <div class="card" data-id="${b.id}">
+        ${b.genre ? `<span class="genre-tag">${escapeHtml(b.genre)}</span>` : ''}
+        <h3>${escapeHtml(b.title)}</h3>
+        ${b.author ? `<p class="author">${escapeHtml(b.author)}</p>` : ''}
+        <div class="meta">
+          <span>${b.date ? formatDate(b.date) : ''}</span>
+          <span class="stars">${b.rating ? '★'.repeat(b.rating) : ''}</span>
+        </div>
+      </div>`;
+    }
+
+    if (activeGenre === 'All') {
+      const groups = {};
+      filtered.forEach(b => {
+        const g = b.genre || 'Uncategorized';
+        (groups[g] = groups[g] || []).push(b);
+      });
+      const genreNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+      contentEl.innerHTML = genreNames.map(g => `
+        <section class="genre-group">
+          <h2 class="genre-heading">${escapeHtml(g)}</h2>
+          <div class="grid">${groups[g].sort(byDateDesc).map(cardHtml).join('')}</div>
+        </section>
+      `).join('');
+    } else {
+      const sorted = [...filtered].sort(byDateDesc);
+      contentEl.innerHTML = `<div class="grid">${sorted.map(cardHtml).join('')}</div>`;
+    }
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  loadBooks();
+</script>
+</body>
+</html>
