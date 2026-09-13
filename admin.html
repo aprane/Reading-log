@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reading Log — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ink: #22332B;
+    --paper: #F3ECDA;
+    --paper-card: #FBF7EC;
+    --cloth: #3C5A45;
+    --cloth-dark: #2A4132;
+    --brass: #B8863F;
+    --brass-light: #E4C88A;
+    --stamp: #8C3B3B;
+    --line: #D8CBA8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+  h1 {
+    font-family: 'Lora', serif;
+    font-weight: 700;
+    font-size: 1.9rem;
+    margin: 0 0 6px;
+  }
+  p.sub { margin: 0 0 32px; color: #5B6B60; font-size: 0.92rem; }
+
+  /* Password gate */
+  #gate { display: flex; justify-content: center; padding-top: 80px; }
+  .gate-card {
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 32px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
+  .gate-card h2 { font-family: 'Lora', serif; font-size: 1.3rem; margin: 0 0 16px; }
+  .gate-card input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+  }
+  .gate-error { color: var(--stamp); font-size: 0.85rem; min-height: 18px; margin-bottom: 8px; }
+
+  #app { display: none; }
+  #app.unlocked { display: block; }
+
+  .panel {
+    background: var(--paper-card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 24px;
+    margin-bottom: 28px;
+  }
+  .panel h2 {
+    font-family: 'Lora', serif;
+    font-size: 1.2rem;
+    margin: 0 0 18px;
+  }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.82rem; color: #5B6B60; margin-bottom: 5px; }
+  .field input {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-size: 0.92rem;
+    background: #fff;
+    color: var(--ink);
+  }
+  .field input:focus { outline: 2px solid var(--brass); outline-offset: 1px; }
+
+  .genre-row { display: flex; gap: 8px; align-items: center; }
+  .genre-row input { flex: 1; }
+  .lookup-btn {
+    background: var(--brass);
+    color: #fff;
+    border: none;
+    padding: 9px 14px;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .lookup-btn:hover { background: #A07535; }
+  .lookup-btn:disabled { background: #C9BC9A; cursor: default; }
+  .lookup-status { font-size: 0.8rem; color: #7C8A80; margin-top: 6px; }
+
+  .rating-picker { display: flex; gap: 6px; }
+  .rating-picker button {
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-size: 1rem;
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--brass);
+  }
+  .rating-picker button.selected { background: var(--brass-light); border-color: var(--brass); }
+
+  .btn-primary {
+    background: var(--cloth);
+    color: var(--paper-card);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 3px;
+    font-size: 0.92rem;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .btn-primary:hover { background: var(--cloth-dark); }
+  .btn-primary:disabled { background: #B0A98A; cursor: default; }
+
+  .error-text { color: var(--stamp); font-size: 0.85rem; margin: 8px 0; display: none; }
+
+  .book-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.9rem;
+  }
+  .book-row:last-child { border-bottom: none; }
+  .book-row .info strong { font-family: 'Lora', serif; }
+  .book-row .info span { color: #7C8A80; margin-left: 8px; }
+  .remove-btn {
+    background: none;
+    border: none;
+    color: #B0A98A;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+  .remove-btn:hover { color: var(--stamp); }
+
+  .empty-note { color: #7C8A80; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-card">
+    <h2>Admin access</h2>
+    <input type="password" id="passwordInput" placeholder="Password">
+    <div class="gate-error" id="gateError"></div>
+    <button class="btn-primary" id="unlockBtn" style="width:100%;">Unlock</button>
+  </div>
+</div>
+
+<div class="wrap" id="app">
+  <h1>Reading Log — Admin</h1>
+  <p class="sub">Add or remove books. Changes appear on your public site immediately.</p>
+
+  <div class="panel">
+    <h2>Add a book</h2>
+    <div class="field">
+      <label for="titleInput">Title</label>
+      <input id="titleInput" type="text" placeholder="The Left Hand of Darkness">
+    </div>
+    <div class="field">
+      <label for="authorInput">Author</label>
+      <input id="authorInput" type="text" placeholder="Ursula K. Le Guin">
+    </div>
+    <div class="field">
+      <label for="genreInput">Genre</label>
+      <div class="genre-row">
+        <input id="genreInput" type="text" placeholder="Science Fiction">
+        <button type="button" class="lookup-btn" id="lookupBtn">Look up</button>
+      </div>
+      <div class="lookup-status" id="lookupStatus"></div>
+    </div>
+    <div class="field">
+      <label for="dateInput">Date finished (optional)</label>
+      <input id="dateInput" type="date">
+    </div>
+    <div class="field">
+      <label>Rating (optional)</label>
+      <div class="rating-picker" id="ratingPicker">
+        <button type="button" data-val="1">★</button>
+        <button type="button" data-val="2">★★</button>
+        <button type="button" data-val="3">★★★</button>
+        <button type="button" data-val="4">★★★★</button>
+        <button type="button" data-val="5">★★★★★</button>
+      </div>
+    </div>
+    <div class="error-text" id="errorText"></div>
+    <button class="btn-primary" id="saveBtn">Save book</button>
+  </div>
+
+  <div class="panel">
+    <h2>Current books</h2>
+    <div id="bookList"><p class="empty-note">Loading…</p></div>
+  </div>
+</div>
+
+<script>
+  // Change this to whatever you like. This is a light deterrent only —
+  // anyone who views this page's source can see the password check,
+  // so don't rely on it to protect sensitive data.
+  const ADMIN_PASSWORD = 'Myb00k$L1st';
+
+  const SUPABASE_URL = 'https://xwnemuogbzekxlhjlvvg.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_coGaKWEh9vUrE_9hRoRTkw_fZU-Mp6R';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let selectedRating = 0;
+  let books = [];
+
+  document.getElementById('unlockBtn').addEventListener('click', tryUnlock);
+  document.getElementById('passwordInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') tryUnlock();
+  });
+
+  function tryUnlock() {
+    const val = document.getElementById('passwordInput').value;
+    if (val === ADMIN_PASSWORD) {
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('app').classList.add('unlocked');
+      loadBooks();
+    } else {
+      document.getElementById('gateError').textContent = 'Incorrect password.';
+    }
+  }
+
+  async function loadBooks() {
+    const listEl = document.getElementById('bookList');
+    try {
+      const { data, error } = await db.from('books').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      books = data || [];
+    } catch (e) {
+      listEl.innerHTML = '<p class="empty-note">Could not load books. Check your connection.</p>';
+      return;
+    }
+    renderList();
+  }
+
+  function renderList() {
+    const listEl = document.getElementById('bookList');
+    if (books.length === 0) {
+      listEl.innerHTML = '<p class="empty-note">No books yet.</p>';
+      return;
+    }
+    listEl.innerHTML = books.map(b => `
+      <div class="book-row" data-id="${b.id}">
+        <div class="info">
+          <strong>${escapeHtml(b.title)}</strong>
+          <span>${b.author ? escapeHtml(b.author) + ' · ' : ''}${escapeHtml(b.genre || '')}</span>
+        </div>
+        <button class="remove-btn" data-id="${b.id}">Remove</button>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.remove-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const prev = books;
+        books = books.filter(b => b.id !== id);
+        renderList();
+        const { error } = await db.from('books').delete().eq('id', id);
+        if (error) {
+          books = prev;
+          renderList();
+          alert('Could not remove that book. Check your connection and try again.');
+        }
+      });
+    });
+  }
+
+  document.querySelectorAll('#ratingPicker button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedRating = selectedRating === Number(btn.dataset.val) ? 0 : Number(btn.dataset.val);
+      document.querySelectorAll('#ratingPicker button').forEach(b =>
+        b.classList.toggle('selected', Number(b.dataset.val) === selectedRating)
+      );
+    });
+  });
+
+  document.getElementById('lookupBtn').addEventListener('click', async () => {
+    const title = document.getElementById('titleInput').value.trim();
+    const author = document.getElementById('authorInput').value.trim();
+    const statusEl = document.getElementById('lookupStatus');
+    const btn = document.getElementById('lookupBtn');
+
+    if (!title) {
+      statusEl.textContent = 'Enter a title first.';
+      return;
+    }
+
+    btn.disabled = true;
+    statusEl.textContent = 'Looking up…';
+
+    try {
+      let q = `intitle:${title}`;
+      if (author) q += `+inauthor:${author}`;
+      const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=5`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Request failed');
+      const data = await res.json();
+
+      const withCategory = (data.items || []).find(
+        item => item.volumeInfo && item.volumeInfo.categories && item.volumeInfo.categories.length
+      );
+
+      if (withCategory) {
+        const genre = withCategory.volumeInfo.categories[0].split('/')[0].trim();
+        document.getElementById('genreInput').value = genre;
+        if (!author && withCategory.volumeInfo.authors) {
+          document.getElementById('authorInput').value = withCategory.volumeInfo.authors[0];
+        }
+        statusEl.textContent = `Found: ${genre}`;
+      } else {
+        statusEl.textContent = "Couldn't find a genre — enter it yourself.";
+      }
+    } catch (e) {
+      statusEl.textContent = 'Lookup failed. Check your connection.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    const title = document.getElementById('titleInput').value.trim();
+    const author = document.getElementById('authorInput').value.trim();
+    const genre = document.getElementById('genreInput').value.trim() || 'Uncategorized';
+    const date = document.getElementById('dateInput').value;
+    const errorText = document.getElementById('errorText');
+    const saveBtn = document.getElementById('saveBtn');
+
+    if (!title) {
+      errorText.textContent = 'A title is required.';
+      errorText.style.display = 'block';
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    errorText.style.display = 'none';
+
+    const { data, error } = await db.from('books').insert([{
+      title, author, genre, date: date || null, rating: selectedRating || null
+    }]).select();
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save book';
+
+    if (error) {
+      errorText.textContent = 'Could not save — check your connection and try again.';
+      errorText.style.display = 'block';
+      return;
+    }
+
+    books.unshift(data[0]);
+    renderList();
+
+    document.getElementById('titleInput').value = '';
+    document.getElementById('authorInput').value = '';
+    document.getElementById('genreInput').value = '';
+    document.getElementById('dateInput').value = '';
+    document.getElementById('lookupStatus').textContent = '';
+    selectedRating = 0;
+    document.querySelectorAll('#ratingPicker button').forEach(b => b.classList.remove('selected'));
+    document.getElementById('titleInput').focus();
+  });
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+</script>
+</body>
+</html>
