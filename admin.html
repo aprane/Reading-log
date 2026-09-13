@@ -297,6 +297,8 @@
     });
   });
 
+  const GOOGLE_BOOKS_API_KEY = 'AIzaSyAXmNTkRFb4pNdNvgsq_YoBuTGh2qootyc';
+
   document.getElementById('lookupBtn').addEventListener('click', async () => {
     const title = document.getElementById('titleInput').value.trim();
     const author = document.getElementById('authorInput').value.trim();
@@ -314,7 +316,7 @@
     try {
       let q = `intitle:${title}`;
       if (author) q += `+inauthor:${author}`;
-      const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=5`;
+      const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=5&key=${GOOGLE_BOOKS_API_KEY}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Request failed');
       const data = await res.json();
