@@ -28,6 +28,12 @@
     color: var(--ink);
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
+    animation: pageIn 0.5s ease both;
+  }
+
+  @keyframes pageIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .wrap {
@@ -38,14 +44,25 @@
 
   /* Header, ledger style */
   header {
+    position: relative;
     border-bottom: 2px solid var(--ink);
-    padding-bottom: 20px;
-    margin-bottom: 28px;
+    padding-bottom: 24px;
+    margin-bottom: 32px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
     gap: 20px;
     flex-wrap: wrap;
+  }
+
+  header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -6px;
+    height: 1px;
+    background: var(--line);
   }
 
   header h1 {
@@ -69,6 +86,7 @@
     color: var(--cloth-dark);
     white-space: nowrap;
     padding-bottom: 4px;
+    transition: color 0.2s;
   }
   .count strong { font-size: 1.3rem; }
 
@@ -91,10 +109,16 @@
     cursor: pointer;
     padding: 4px 0;
     border-bottom: 2px solid transparent;
-    transition: color 0.15s, border-color 0.15s;
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
   }
 
-  .tab:hover { color: var(--ink); }
+  .tab:hover { color: var(--ink); transform: translateY(-1px); }
+
+  .tab:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
 
   .tab.active {
     color: var(--ink);
@@ -102,7 +126,15 @@
     font-weight: 600;
   }
 
-  .genre-group { margin-bottom: 34px; }
+  .genre-group {
+    margin-bottom: 34px;
+    animation: fadeIn 0.4s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 
   .genre-heading {
     font-family: 'Lora', serif;
@@ -131,6 +163,52 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    animation: cardIn 0.35s ease both;
+  }
+
+  .card .cover {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    margin-bottom: 4px;
+    background: #EFE7D2;
+  }
+
+  .card .cover-placeholder {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    margin-bottom: 4px;
+    background: linear-gradient(135deg, var(--brass-light), var(--brass));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Lora', serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    color: var(--paper-card);
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .grid .card:nth-child(1) { animation-delay: 0.02s; }
+  .grid .card:nth-child(2) { animation-delay: 0.06s; }
+  .grid .card:nth-child(3) { animation-delay: 0.1s; }
+  .grid .card:nth-child(4) { animation-delay: 0.14s; }
+  .grid .card:nth-child(5) { animation-delay: 0.18s; }
+  .grid .card:nth-child(6) { animation-delay: 0.22s; }
+
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 2px 6px 14px rgba(34,51,43,0.14);
+    border-color: var(--brass);
   }
 
   .card .genre-tag {
@@ -144,7 +222,12 @@
     border-radius: 2px;
     font-weight: 500;
     letter-spacing: 0.01em;
+    box-shadow: 1px 2px 3px rgba(34,51,43,0.18);
+    transform: rotate(-2deg);
+    transition: transform 0.2s ease;
   }
+
+  .card:hover .genre-tag { transform: rotate(0deg); }
 
   .card h3 {
     font-family: 'Lora', serif;
@@ -182,12 +265,23 @@
     padding: 48px 24px;
     text-align: center;
     color: #6B7A6F;
+    animation: fadeIn 0.4s ease both;
   }
   .empty p:first-child {
     font-family: 'Lora', serif;
     font-size: 1.2rem;
     color: var(--ink);
     margin-bottom: 6px;
+  }
+
+  .loading-text {
+    color: #7C8A80;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
   }
 
   @media (max-width: 480px) {
@@ -223,7 +317,7 @@
   const countEl = document.getElementById('count');
 
   async function loadBooks() {
-    contentEl.innerHTML = '<p style="color:#7C8A80;">Loading your shelf…</p>';
+    contentEl.innerHTML = '<p class="loading-text">Loading your shelf…</p>';
     try {
       const { data, error } = await db.from('books').select('*').order('created_at', { ascending: false });
       if (error) throw error;
@@ -274,9 +368,14 @@
     const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '');
 
     function cardHtml(b) {
+      const initial = (b.title || '?').trim().charAt(0).toUpperCase();
+      const coverHtml = b.cover_url
+        ? `<img class="cover" src="${escapeHtml(b.cover_url)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=&quot;cover-placeholder&quot;>${initial}</div>'">`
+        : `<div class="cover-placeholder">${initial}</div>`;
       return `
       <div class="card" data-id="${b.id}">
         ${b.genre ? `<span class="genre-tag">${escapeHtml(b.genre)}</span>` : ''}
+        ${coverHtml}
         <h3>${escapeHtml(b.title)}</h3>
         ${b.author ? `<p class="author">${escapeHtml(b.author)}</p>` : ''}
         <div class="meta">
