@@ -434,7 +434,8 @@
 
     contentEl.querySelectorAll('[data-summary-toggle]').forEach(btn => {
       btn.addEventListener('click', () => {
-        const textEl = btn.nextElementSibling;
+        const card = btn.closest('.card');
+        const textEl = card.querySelector('.summary-text');
         const isOpen = textEl.classList.toggle('open');
         btn.textContent = isOpen ? 'Hide summary' : 'Summary';
       });
